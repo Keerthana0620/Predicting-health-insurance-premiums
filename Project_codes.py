@@ -34,7 +34,7 @@ import scipy.stats as stats
 
 #%%
 
-df_input = pd.read_csv("insurance_dataset.csv")
+df_input = pd.read_csv("Documents/insurance_dataset.csv")
 df_input.head()
 
 #%%
