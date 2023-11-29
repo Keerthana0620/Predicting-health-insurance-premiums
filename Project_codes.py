@@ -3,7 +3,7 @@
 
 #%%[markdown]
 #
-# # DM Project
+# # Predicting Health Insurance Premiums in the US : Data Mining Project
 # ## By: Keerthana Aravindhan
 # ### Date: Nov 07 2023
 #
@@ -25,149 +25,253 @@
 
 
 #%%
+
+#############
+## Imports ##
+#############
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import scipy.stats as stats
+from sklearn import preprocessing
+# from IPython.display import display
 #import rfit 
 
+from statsmodels.formula.api import ols
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+import scipy.stats as stats
+import statsmodels.api as sm
+from scipy.stats import f_oneway
+from statsmodels.stats.multicomp import pairwise_tukeyhsd
+
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn import tree
+from sklearn.tree import DecisionTreeRegressor 
+from xgboost import XGBRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import KFold
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import r2_score
+
+##################################################
+#<<<<<<<<<<<<<<<< End of Section >>>>>>>>>>>>>>>>#
+
 #%%
 
-df_input = pd.read_csv("Documents/insurance_dataset.csv")
-df_input.head()
+##########################
+## Set Display Settings ##
+##########################
+
+#Possible Graph Color Schemes
+#color_list=['BuPu', 'PRGn', 'Pastel1', 'Pastel2', 'Set2', 'binary', 'bone', 'bwr',
+#                 'bwr_r', 'coolwarm', 'cubehelix', 'gist_earth', 'gist_gray', 'icefire',]
+
+#Diagram Settings
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
+pd.set_option('display.width', 1000)
+pd.set_option('display.colheader_justify', 'center')
+pd.set_option('display.precision', 3)
+#pd.set_option('display.float_format', lambda x: '%.2f' % x)
+
+#Select Color Palette
+sns.set_palette('Set2')
+
+#RGB values of pallette
+#print(sns.color_palette('Set2').as_hex())
+#col_pallette=['#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3', '#a6d854', '#ffd92f', '#e5c494', '#b3b3b3']
+
+##################################################
+#<<<<<<<<<<<<<<<< End of Section >>>>>>>>>>>>>>>>#
 
 #%%
 
-# Summary of world1 and world2 dataset
+###############
+## Functions ##
+###############
+
+# encoding categorical variables.
+def Encoder(x):
+    """
+    Encoding Categorical variables in the dataset.
+    """
+    columnsToEncode = list(x.select_dtypes(include=['object']))
+    le = preprocessing.LabelEncoder()
+    for feature in columnsToEncode:
+        try:
+           x[feature] = le.fit_transform(x[feature])
+        except:
+            print('Error encoding '+feature)
+    return df
+
+##################################################
+#<<<<<<<<<<<<<<<< End of Section >>>>>>>>>>>>>>>>#
+
+
+#%%
+
+###############
+## Load Data ##
+###############
+
+df_input = pd.read_csv("insurance_dataset.csv")
 df_input.head()
-df_input.describe()
-df_input.shape
-df_input.info()
+#display(df_input.head().style.set_sticky(axis="index"))
 
-# Data Cleaning
-df_input.isna().values.any()
+#%%
 
+# Details about dataset:
+print(f"Number of Observations in dataset: {len(df_input)} \n")
+print(f"Shape of dataset: {df_input.shape} \n")
+print(f"Dataset info: {df_input.info()} \n")
+print(f"Dataset describe: \n {df_input.describe()}")
+
+##################################################
+#<<<<<<<<<<<<<<<< End of Section >>>>>>>>>>>>>>>>#
+
+#%%
+
+################
+## Clean Data ##
+################
+
+# Remove missing values
+print(df_input.isnull().sum())
 df_input.drop_duplicates(inplace=True)
 
-#%%
-
-print(df_input.dtypes)
-print(df_input.isnull().sum())
-#%%
-
 # null is present in medical_history and family_medical_history.
-df = df_input
+df = df_input.copy()
 df['medical_history'].fillna('None', inplace=True)
 df['family_medical_history'].fillna('None', inplace=True)
-df.isnull().sum()
+
+# After removing
+print("\nAfter Removing missing values:\n")
+print(df.isnull().sum())
 
 #%%
 
+#Convert columns to desired data types
+print(df.dtypes)
 
+# Converting categorical variables into int
+
+df = Encoder(df)
+print("\n")
+print (df.head())
+
+""" 
+male : 1, female : 0 
+smoker : 1, non smoker : 0
+medical_history: Heart disease- 1,High blood pressure- 2,Diabetes- 0, None- 3
+region: southeast-2 , northwest-1 ,southwest- 3, northeast- 0
+family_medical_history: Heart disease- 1,High blood pressure- 2,Diabetes- 0, None- 3
+exercise_frequency: Frequently-0 ,never-1 ,occasionaly-2 ,rarely-3 
+occupation : blue collar- 0, student- 1,unemployed- 2,whitecollar- 3
+coverage_level : Basic- 0,Premium- 1,Standard- 2  
+"""
+
+#%%
+print("Data Types after conversion \n")
+print(df.dtypes)
+
+##################################################
+#<<<<<<<<<<<<<<<< End of Section >>>>>>>>>>>>>>>>#
 
 #%%
 
-#Analysis 
-####### Charges Analysis 
+###############################
+## Exploratory data analysis ##
+###############################
 
-plt.hist(df.charges, bins = 20, alpha=0.5, edgecolor='black', color="green",linewidth=1)
-plt.xlabel('Charges')
-plt.ylabel('Density')
-plt.title('Charges Distribution')
-plt.legend()
-plt.tight_layout()
+print('\nGraphical Exploration of numerical variables:\n')
+
+# Charge Distribution :
+
+print('\nCharges Distribution')
+sns.histplot(data=df, x='charges', bins=30, color='m')
+plt.xlabel ('Charges ', size=12)
+plt.ylabel('Count', size=12)
+plt.title('Distribution of Charges', size=14)
 plt.show()
 
-# 14000 to 20000 more density charges
+# The dataset exhibits a notable absence of outliers, and 
+# the distribution of charges aligns closely with a normal distribution.
 
 #%%
 
-####### Charges vs Region:
+# Distribution of age:
 
-df['region'].value_counts()
-# northeast have max people and south east have minimum
-# ANOVA test to check the charges mean between region.
-
-plt.figure(figsize=(10, 6))
-
-# Create a box plot between income and ethnic.
-df.boxplot(column='charges', by='region', vert=False, flierprops={'marker': 'o', 'markerfacecolor': 'red', 'markersize': 5})
-plt.suptitle('')  # Remove the default title
-plt.xticks(rotation=45, ha='right')  # Rotate x-axis labels for better readability
-plt.title('Box Plot of Charges by Region')
-plt.xlabel('Charges')
-plt.ylabel('Region')
-plt.tight_layout()
+print('\nAge Distribution')
+sns.kdeplot(df['age'], color = "m", alpha = 0.5)
+plt.xlabel ('Age ', size=12)
+plt.ylabel('Density', size=12)
+plt.title('Distribution of Age', size=14)
 plt.show()
 
-# Using ANOVA test to find mean income between ethnic.
-from bioinfokit.analys import stat
-res = stat()
-res.anova_stat(df=df, res_var='charges', anova_model='charges ~ C(region)')
-alpha = 0.05
-print("ANOVA test Result: ")
-print(res.anova_summary)
-print("\n p value < alpha :  There is significant difference in charges between region")
-
-# perform multiple pairwise comparison (Tukey's HSD)
-# unequal sample size data, tukey_hsd uses Tukey-Kramer test
-
-# res = stat()
-# res.tukey_hsd(df=df, res_var='charges', xfac_var='region', anova_model='charges ~ C(region)')
-# print("\nTukey's HSD Test")
-# print(res.tukey_summary)
-
+# all age groups are present in almost equal density.
 
 #%%
 
-###### Charges vs Gender:
+# Scatter plot of age vs charges:
 
-df['gender'].value_counts()
-# male      500107
-# female    499893
-# Average charges for each gender
-df[df['gender'] == 'male']['charges'].mean()  # 17236.318028914015
-df[df['gender'] == 'female']['charges'].mean() # 16233.702372522359
-# Average of male charges is more compared to female. And male pay the max charge in data, female pay the min charges amount.
-charges = df['charges']
-charges_male = charges[df['gender']=='male']
-charges_female = charges[df['gender']=='female']
+age = pd.pivot_table(df, values='charges', columns='age', aggfunc='mean')
+melt_age = pd.melt(age, var_name='age', value_name='average_charges')
 
-# Create kde plot for male and female.
-plt.style.use('seaborn-v0_8-deep')
-sns.kdeplot(charges_female, label = 'female', color = "m", alpha = 0.5)
-sns.kdeplot(charges_male, label = 'male', color = "y", alpha = 0.5)
+sns.scatterplot(x='age', y='average_charges', data=melt_age, alpha=0.5, color='blue')
 
-plt.xlabel('Charges')
-plt.ylabel('Density')
-plt.title('Charges Distribution for Female and Male')
-plt.legend()
-plt.tight_layout()
+plt.title('Scatter Plot between Charges and age')
+plt.xlabel('age')
+plt.ylabel('Average Charges')
 plt.show()
 
-# T test between Income of male and female.
-t_stat, p_value = stats.ttest_ind(charges_female, charges_male)
-
-print(f"T test Result: \n P value: {p_value}")
-alpha = 0.05
-# Check the p-value
-if p_value < alpha:  # You can choose your significance level (e.g., 0.05)
-    print(" Reject the null hypothesis; There is a significant difference in income between gender")
-else:
-    print(" There is no significant difference in income between gender")
+# age and charges are almost linear to each other.
+# Thus, when age increase charges increase.
 
 #%%
 
-####### Charges vs coverage_level:
+# Distribution of bmi:
+
+print('\nBMI Distribution')
+sns.kdeplot(df['bmi'], color = "m", alpha = 0.5)
+plt.xlabel ('bmi ', size=12)
+plt.ylabel('density', size=12)
+plt.title('Distribution of BMI', size=14)
+plt.show()
+
+# all bmi values are also present in almost equal level.
+
+#%%
+
+# Scatter plot of BMI vs charges:
+
+bmi = pd.pivot_table(df, values='charges', columns='bmi', aggfunc='mean')
+melt_bmi = pd.melt(bmi, var_name='bmi', value_name='average_charges')
+
+sns.scatterplot(x='bmi', y='average_charges', data=melt_bmi, alpha=0.5, color='orange')
+
+plt.title('Scatter Plot between Charges and bmi')
+plt.xlabel('bmi')
+plt.ylabel('Average Charges')
+plt.show()
+
+# bmi and charges are almost linear to each other.
+
+#%%
+
+print('\nGraphical Exploration of categorical variables:\n')
+
+# Coverage level vs Charges:
 
 df['coverage_level'].value_counts()
-# northeast have max people and south east have minimum
-# ANOVA test to check the charges mean between region.
+# Coverage level count is more in Basic and least in Premium
 
 plt.figure(figsize=(10, 6))
 
-# Create a box plot between income and ethnic.
+# Create a box plot between charges and coverage_level.
 df.boxplot(column='charges', by='coverage_level', vert=False, flierprops={'marker': 'o', 'markerfacecolor': 'red', 'markersize': 5})
 plt.suptitle('')  # Remove the default title
 plt.xticks(rotation=45, ha='right')  # Rotate x-axis labels for better readability
@@ -177,334 +281,764 @@ plt.ylabel('coverage_level')
 plt.tight_layout()
 plt.show()
 
-#%%
-####### Charges vs Occupation
+# The analysis exactly reveals that Premium customers incur the highest charges, 
+# trailed by Standard and Basic customers in descending order.
 
-# Create box plot between marital and income.
-sns.boxplot(x='occupation', y='charges', data=df, color='#f2f2f2')
+
+#%%
+
+# KDE plot of charges vs smoker
+
+print("Smoker counts: ", df['smoker'].value_counts())
+
+sns.set(style="whitegrid")
+# Create a KDE plot
+plt.figure(figsize=(10, 6))
+sns.kdeplot(data=df, x='charges', hue='smoker', fill=True, common_norm=False, palette='viridis')
+# Set plot labels and title
+plt.xlabel('Charges')
+plt.ylabel('Density')
+plt.title('KDE Plot of Charges vs. Smoker')
+# Show the plot
 plt.show()
 
-from bioinfokit.analys import stat
-res = stat()
-res.anova_stat(df=df, res_var='charges', anova_model='charges ~ C(occupation)')
-alpha = 0.05
-print("ANOVA test Result: ")
-print(res.anova_summary)
-print("\n p value < alpha :  There is significant difference in charges between region")
+# The KDE plot clearly illustrates that more of Smokers tend to incur higher charges 
+# compared to non-smokers.
 
 
 #%%
 
-####### Charges vs medical_history
+# Gender vs Charges:
+
+print("Gender counts: ", df['gender'].value_counts())
+# male      500107
+# female    499893
+
+plt.figure(figsize=(10, 6))
+sns.barplot(data=df, x='gender', y='charges', palette='pastel')
+# Set plot labels and title
+plt.xlabel('Gender')
+plt.ylabel('Charges')
+plt.title('Barplot of Charges vs. Gender')
+# Show the plot
+plt.show()
+
+# On average, males tend to give higher charges than females. 
+# Additionally, the maximum charge in the dataset is paid by a male, while the 
+# minimum charges are associated with females.
+
+
+#%%
+
+# Charges vs Medical History:
 
 medical = pd.pivot_table(df, values='charges', columns=['medical_history'], aggfunc='mean')
-# Melt the pivot table to a long format
-meltmedical = pd.melt(medical, var_name='medical_history', value_name='average_charges')
+melt_medical = pd.melt(medical, var_name='medical_history', value_name='average_charges')
 
 # Create a bar chart with 'hue' for gender
 plt.figure(figsize=(10, 6))
 sns.set_style("whitegrid")
-sns.barplot(data=meltmedical, x='medical_history', y='average_charges')
+sns.barplot(data=melt_medical, x='medical_history', y='average_charges', color='g')
 plt.xlabel('medical_history')
 plt.ylabel('Average Charges')
 plt.title('Average Charges by Medical_history')
+plt.xticks([0,1,2,3], ['Diabets', 'Heart disease', 'High blood pressue', 'None'])
 plt.tight_layout()
 plt.show()
 
+# The average charges are notably higher for individuals with heart disease, followed by those with diabetes in medical_history.
+
 #%%
 
-####### Charges vs family_medical_history
+# Charges vs Family Medical History:
 
-medical = pd.pivot_table(df, values='charges', columns=['family_medical_history'], aggfunc='mean')
+family_medical = pd.pivot_table(df, values='charges', columns=['family_medical_history'], aggfunc='mean')
 # Melt the pivot table to a long format
-meltmedical = pd.melt(medical, var_name='family_medical_history', value_name='average_charges')
+melt_family_medical = pd.melt(family_medical, var_name='family_medical_history', value_name='average_charges')
 
 # Create a bar chart with 'hue' for gender
 plt.figure(figsize=(10, 6))
 sns.set_style("whitegrid")
-sns.barplot(data=meltmedical, x='family_medical_history', y='average_charges')
+sns.barplot(data=melt_family_medical, x='family_medical_history', y='average_charges')
 plt.xlabel('family_medical_history')
 plt.ylabel('Average Charges')
 plt.title('Average Charges by family_medical_history')
+plt.xticks([0,1,2,3], ['Diabets', 'Heart disease', 'High blood pressue', 'None'])
 plt.tight_layout()
 plt.show()
 
+# The average charges are notably higher for individuals with heart disease, followed by those with diabetes in family_medical_history.
+
 #%%
 
-####### Charges vs exercise_frequency
+# Charges vs Occupation:
 
-medical = pd.pivot_table(df, values='charges', columns='exercise_frequency', aggfunc='mean')
+print("Occupation counts: ", df['occupation'].value_counts())
+
+occupation = pd.pivot_table(df, values='charges', columns=['occupation'], aggfunc='mean')
 # Melt the pivot table to a long format
-meltmedical = pd.melt(medical, var_name='exercise_frequency', value_name='average_charges')
+melt_occupation = pd.melt(occupation, var_name='occupation', value_name='average_charges')
 
 # Create a bar chart with 'hue' for gender
 plt.figure(figsize=(10, 6))
 sns.set_style("whitegrid")
-sns.barplot(data=meltmedical, x='exercise_frequency', y='average_charges')
-plt.xlabel('exercise_frequency')
+sns.barplot(data=melt_occupation, x='occupation', y='average_charges', color='pink')
+plt.xlabel('occupation')
 plt.ylabel('Average Charges')
-plt.title('Average Charges by exercise_frequency')
+plt.title('Average Charges by occupation')
+plt.xticks([0,1,2,3], ['bluecollar', 'student', 'unemployed', 'whitecollar'])
 plt.tight_layout()
 plt.show()
 
 #%%
 
-###### Charges vs smoker:
+# Occupation count:
 
-df['smoker'].value_counts()
-# male      500107
-# female    499893
-# Average charges for each gender
-df[df['smoker'] == 'yes']['charges'].mean()  # 17236.318028914015
-df[df['smoker'] == 'no']['charges'].mean() # 16233.702372522359
-# Average of male charges is more compared to female. And male pay the max charge in data, female pay the min charges amount.
-charges = df['charges']
-charges_smoker = charges[df['smoker']=='yes']
-charges_nonsmoker = charges[df['smoker']=='no']
+occupation_counts = df['occupation'].value_counts().reset_index()
+occupation_counts = occupation_counts.sort_values(by='occupation')
 
-# Create kde plot for male and female.
-plt.style.use('seaborn-v0_8-deep')
-sns.kdeplot(charges_smoker, label = 'smoker', color = "m", alpha = 0.5)
-sns.kdeplot(charges_nonsmoker, label = 'nonsmoker', color = "y", alpha = 0.5)
+plt.figure(figsize=(12, 6))
+plt.plot(occupation_counts['occupation'], occupation_counts['count'], marker='o', linestyle='-', color='b')
+# Set plot labels and title
+plt.xlabel('Occupation')
+plt.ylabel('Count')
+plt.title('Count of Occupations')
+# Rotate x-axis labels for better visibility
+plt.xticks(rotation=45, ha='right')
+# Show the plot
+plt.show()
 
+# The average charges are notably higher for white collar occupation, followed by those
+#  in blue collar and student.
+# Unemployed pay less charges. Also, according to dataset, Unemployed are in more count.
+
+#%%
+
+# Exercise Freq count:
+
+exercise_counts = df['exercise_frequency'].value_counts().reset_index()
+exercise_counts = exercise_counts.sort_values(by='exercise_frequency')
+
+plt.figure(figsize=(12, 6))
+plt.plot(exercise_counts['exercise_frequency'], exercise_counts['count'], marker='o', linestyle='-', color='black')
+# Set plot labels and title
+plt.xlabel('exercise_frequency')
+plt.ylabel('Count')
+plt.title('Count of exercise_frequency')
+# Rotate x-axis labels for better visibility
+plt.xticks(rotation=45, ha='right')
+# Show the plot
+plt.show()
+
+#%%
+
+# Exercise_freq vs medical_history
+
+plt.figure(figsize=(11,7))
+sns.countplot(x='exercise_frequency',hue='medical_history',data=df,palette='Set3')
+
+#%%
+
+# Exercise_freq vs medical_history vs charges
+
+sns.set(style="whitegrid")
+# Create a grouped bar chart
+plt.figure(figsize=(12, 8))
+sns.barplot(data=df, x='exercise_frequency', y='charges', hue='medical_history', palette='muted')
+
+# Set plot labels and title
+plt.xlabel('Exercise Frequency')
+plt.ylabel('Charges')
+plt.title('Exercise Frequency vs. Medical History vs. Charges')
+plt.xticks([0,1,2,3], ['Frequently', 'never', 'occasionaly', 'rarely'])
+# Show the legend
+plt.legend(title='Medical History')
+# Show the plot
+plt.show()
+
+# Individuals who engage in frequent exercise and have a history of heart disease tend 
+# to incur higher charges. Following this, those who exercise occasionally and have a history 
+# of heart disease exhibit the highest charges.
+ 
+# Conversely, the lowest charges are observed among individuals with no exercise regimen and no 
+# reported medical history.
+
+
+#%%
+
+# Exercise_freq vs smoker vs charges
+
+sns.set(style="whitegrid")
+# Create a grouped bar chart
+plt.figure(figsize=(12, 8))
+sns.barplot(data=df, x='exercise_frequency', y='charges', hue='smoker', palette='PRGn')
+
+# Set plot labels and title
+plt.xlabel('Exercise Frequency')
+plt.ylabel('Charges')
+plt.title('Exercise Frequency vs. Smokers vs. Charges')
+plt.xticks([0,1,2,3], ['Frequently', 'never', 'occasionaly', 'rarely'])
+# Show the legend
+plt.legend(title='Smokers')
+# Show the plot
+plt.show()
+
+# Individuals who engage in frequent exercise and have a smoking habit tend 
+# to incur higher charges. Following this, those who exercise occasionally and rarely and have smoking habit
+#  exhibit the highest charges.
+ 
+# Conversely, the lowest charges are observed among individuals with no exercise regimen and no 
+# smoking habit.
+
+#%%
+
+##### Bar plot of categorical variables vs charges:
+
+categorical_features = ['gender', 'smoker', 'region', 'children', 'medical_history', 'family_medical_history', 'exercise_frequency', 'occupation', 'coverage_level' ]
+ 
+plt.subplots(figsize=(20, 10))
+for i, col in enumerate(categorical_features):
+    plt.subplot(3, 3, i + 1)
+    df.groupby(col).mean()['charges'].plot.bar()
+plt.show()
+
+##################################################
+#<<<<<<<<<<<<<<<< End of Section >>>>>>>>>>>>>>>>#
+
+#%%
+
+#######################
+## Statistical Tests ##
+#######################
+
+#### T-Test between 2 sample independent and Quantitative dependent variable 
+
+# Charges vs Gender:
+
+df.boxplot(column='charges', by='gender', vert=False, flierprops={'marker': 'o', 'markerfacecolor': 'red', 'markersize': 5})
+plt.suptitle('')  # Remove the default title
+plt.xticks(rotation=45, ha='right')  # Rotate x-axis labels for better readability
+plt.title('Box Plot of Charges by gender')
 plt.xlabel('Charges')
-plt.ylabel('Density')
-plt.title('Charges Distribution for smoker and nonsmoker')
-plt.legend()
+plt.ylabel('gender')
 plt.tight_layout()
 plt.show()
 
+charges = df['charges']
+charges_male = charges[df['gender']==1]
+charges_female = charges[df['gender']==0]
+
 # T test between Income of male and female.
-t_stat, p_value = stats.ttest_ind(charges_smoker, charges_nonsmoker)
+t_stat, p_value = stats.ttest_ind(charges_female, charges_male)
 
 print(f"T test Result: \n P value: {p_value}")
 alpha = 0.05
 # Check the p-value
 if p_value < alpha:  # You can choose your significance level (e.g., 0.05)
-    print(" Reject the null hypothesis; There is a significant difference in income between gender")
+    print(" Reject the null hypothesis; There is a significant difference in charges between gender")
 else:
-    print(" There is no significant difference in income between gender")
+    print(" There is no significant difference in charges between gender")
+
 
 #%%
 
-###### Charges vs bmi
+# Charges vs Smoker:
 
-plt.figure(figsize=(10, 6))
-
-sns.scatterplot(x='bmi', y='charges', data=df, alpha=0.5)
-
-plt.title('Scatter Plot between Charges and BMI')
-plt.xlabel('BMI')
-plt.ylabel('Charges')
+df.boxplot(column='charges', by='smoker', vert=False, flierprops={'marker': 'o', 'markerfacecolor': 'red', 'markersize': 5})
+plt.suptitle('')  # Remove the default title
+plt.xticks(rotation=45, ha='right')  # Rotate x-axis labels for better readability
+plt.title('Box Plot of Charges by smoker')
+plt.xlabel('Charges')
+plt.ylabel('smoker')
+plt.tight_layout()
 plt.show()
 
-bmi = pd.pivot_table(df, values='charges', columns='bmi', aggfunc='mean')
-meltbmi = pd.melt(bmi, var_name='age', value_name='average_charges')
 
-sns.scatterplot(x='bmi', y='average_charges', data=meltbmi, alpha=0.5)
+charges_smoker = charges[df['smoker']==1]
+charges_nonsmoker = charges[df['smoker']==0]
 
-plt.title('Scatter Plot between Charges and bmi')
-plt.xlabel('bmi')
-plt.ylabel('Charges')
-plt.show()
+# T test between Income of smoker and non-smoker.
+t_stat, p_value = stats.ttest_ind(charges_smoker, charges_nonsmoker)
+
+print(f"T test Result: \n P value: {p_value}")
+# Check the p-value
+if p_value < alpha: 
+    print(" Reject the null hypothesis; There is a significant difference in charges between smoker and nonsmoker")
+else:
+    print(" There is no significant difference in charges between smoker and non-smoker")
 
 #%%
 
-###### Charges vs age
+#### One way Anovas
 
-plt.figure(figsize=(10, 6))
+#Boxplot charges vs medical_history
 
-sns.scatterplot(x='age', y='charges', data=df, alpha=0.5)
-
-plt.title('Scatter Plot between Charges and age')
-plt.xlabel('age')
-plt.ylabel('Charges')
-plt.show()
-
-age = pd.pivot_table(df, values='charges', columns='age', aggfunc='mean')
-meltage = pd.melt(age, var_name='age', value_name='average_charges')
-
-sns.scatterplot(x='age', y='average_charges', data=meltage, alpha=0.5)
-
-plt.title('Scatter Plot between Charges and age')
-plt.xlabel('age')
-plt.ylabel('Charges')
+g1 = sns.boxplot(data = df, y = 'charges', x = 'medical_history', palette='Set3', showmeans = True, meanprops = {"marker": "o", "markerfacecolor":"red", "markeredgecolor":"black", "markersize":"6"}, showfliers = False)
+g1.set(title ='Boxplot charges vs medical_history')
+plt.xlabel('medical_history')
+plt.ylabel('charges') 
+plt.xticks([0,1,2,3], ['Diabets', 'Heart disease', 'High blood pressue', 'None'])
+plt.grid()
 plt.show()
 
 #%%
 
-sns.pairplot(df[['age', 'gender', 'bmi', 'children', 'smoker', 'region', 'medical_history', 'family_medical_history', 'exercise_frequency', 'occupation', 'coverage_level', 'charges']])
+model_MH= ols('charges ~ C(medical_history)',data=df).fit()
+result_MH = sm.stats.anova_lm(model_MH, type=1)
+  
+# Print the result
+print(result_MH, "\n")
+
+tukey_MH = pairwise_tukeyhsd(endog=df['charges'], groups=df['medical_history'], alpha=0.05)
+print(tukey_MH)
+
+#%%
+
+#Boxplot charges vs family_medical_history
+
+g1 = sns.boxplot(data = df, y = 'charges', x = 'family_medical_history', palette='Set3', showmeans = True, meanprops = {"marker": "o", "markerfacecolor":"red", "markeredgecolor":"black", "markersize":"6"}, showfliers = False)
+g1.set(title ='Boxplot charges vs family_medical_history')
+plt.xlabel('family_medical_history')
+plt.ylabel('charges') 
+plt.xticks([0,1,2,3], ['Diabets', 'Heart disease', 'High blood pressue', 'None'])
+plt.grid()
 plt.show()
 
 #%%
 
+model_FMH= ols('charges ~ C(family_medical_history)',data=df).fit()
+result_FMH = sm.stats.anova_lm(model_FMH, type=1)
+  
+# Print the result
+print(result_FMH, "\n")
+
+tukey_FMH = pairwise_tukeyhsd(endog=df['charges'], groups=df['family_medical_history'], alpha=0.05)
+print(tukey_FMH)
+
+#%%
+
+#Boxplot charges vs occupation
+
+g1 = sns.boxplot(data = df, y = 'charges', x = 'occupation', palette='Set3', showmeans = True, meanprops = {"marker": "o", "markerfacecolor":"red", "markeredgecolor":"black", "markersize":"6"}, showfliers = False)
+g1.set(title ='Boxplot charges vs occupation')
+plt.xlabel('occupation')
+plt.ylabel('charges') 
+plt.grid()
+plt.show()
+
+#%%
+
+model_OC= ols('charges ~ C(occupation)',
+            data=df).fit()
+result_OC = sm.stats.anova_lm(model_OC, type=1)
+  
+# Print the result
+print(result_OC, "\n")
+
+tukey_OC = pairwise_tukeyhsd(endog=df['charges'], groups=df['occupation'], alpha=0.05)
+print(tukey_OC)
+
+#%%
+
+#Boxplot charges vs exercise_frequency
+
+g1 = sns.boxplot(data = df, y = 'charges', x = 'exercise_frequency', palette='Set3', showmeans = True, meanprops = {"marker": "o", "markerfacecolor":"red", "markeredgecolor":"black", "markersize":"6"}, showfliers = False)
+g1.set(xticklabels= charges)
+g1.set(title ='Boxplot charges vs exercise_frequency')
+plt.xlabel('exercise_frequency')
+plt.ylabel('charges') 
+plt.grid()
+plt.show()
+
+#%%
+
+model_EF= ols('charges ~ C(exercise_frequency)',
+            data=df).fit()
+result_EF = sm.stats.anova_lm(model_EF, type=1)
+  
+# Print the result
+print(result_EF, "\n")
+
+tukey_EF = pairwise_tukeyhsd(endog=df['charges'], groups=df['exercise_frequency'], alpha=0.05)
+print(tukey_EF)
+
+#%%
+
+### TWO-WAY ANOVAs
+
+# Charges vs smoker vs gender 
+twoway_model = ols('charges ~ C(smoker) + C(age) + C(smoker):C(age)',
+            data=df).fit()
+result = sm.stats.anova_lm(twoway_model, type=2)
+print(result, "\n")
+
+combination = df.smoker + df.age
+
+tukey_TWM2 = pairwise_tukeyhsd(endog=df['charges'], groups=combination , alpha=0.05)
+
+print(tukey_TWM2)
+
+##################################################
+#<<<<<<<<<<<<<<<< End of Section >>>>>>>>>>>>>>>>#
+
+
+#%%
+
+#################
+## Correlation ##
+#################
+
+sns.pairplot(df)
+plt.show()
+
+#%%
+
+sns.distplot(df['charges'])
+
+#%%
+
+sns.set(rc={'figure.figsize':(14,8)})
 correlation_matrix = df.corr()
-
-# Display the correlation matrix
-print(correlation_matrix)
-
-#%%
-
-sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f")
+#print(correlation_matrix)
+sns.heatmap(correlation_matrix, annot=True, cmap='YlGnBu')
 plt.show()
 
-#%%
+# Scaling of numerical variables (ie: age and bmi) not needed because they are in almost same range.
 
-# checking numerical present variables with correlation with charges.
-df1 = df.drop(['gender', 'smoker', 'region', 'medical_history', 'family_medical_history', 'exercise_frequency', 'occupation', 'coverage_level'], axis=1)
-print(df1.dtypes)
-correlation_matrix = df1.corr()
-print(correlation_matrix)
-sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f")
-plt.show()
-
+##################################################
+#<<<<<<<<<<<<<<<< End of Section >>>>>>>>>>>>>>>>#
 
 #%%
 
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+#####################
+## Split Data ##
+#####################
 
-scaler = StandardScaler()
-df[['age', 'bmi', 'children']] = scaler.fit_transform(df[['age', 'bmi', 'children']])
-X = df.drop(['gender', 'smoker', 'region', 'medical_history', 'family_medical_history', 'exercise_frequency', 'occupation', 'coverage_level', 'charges'], axis=1)
+X = df.drop('charges', axis=1)
 y = df['charges']
 
 # Split the data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+print("X_Train set shape: ", X_train.shape)
+print("y_Train set shape: ", y_train.shape)
+print("X_test set shape: ", X_test.shape)
+print("y_test set shape: ", y_test.shape)
 
-model = RandomForestRegressor(n_estimators=100, random_state=42)
-model.fit(X_train, y_train)
+#%%
 
-y_pred = model.predict(X_test)
+######################
+# VIF of Features ####
+######################
 
-# Evaluate the model
-mae = mean_absolute_error(y_test, y_pred)
-mse = mean_squared_error(y_test, y_pred)
-r2 = r2_score(y_test, y_pred)
+X = df.drop('charges', axis=1)
+y = df['charges']
+vif_data = pd.DataFrame()
+vif_data["Variable"] = X.columns
+vif_data["VIF"] = [variance_inflation_factor(X.values, i) for i in range(X.shape[1])]
 
-print(f'Mean Absolute Error: {mae}')
-print(f'Mean Squared Error: {mse}')
-print(f'R-squared: {r2}')
+print("VIF Data: \n", vif_data)
+
+#%%
+
+#####################
+## Model Selection ##
+#####################
+
+########## Linear Regression:
+
+#### Interpretation of Data:
+
+########## Support Vector Regression:
+
+########## Random Forest Regression:
+
+#%%
+
+########## Gradient Boost Regression:
+
+#### Baseline model:
+
+cv = KFold(n_splits=10, shuffle=True, random_state=1)
+for depth in range(1,10):
+    tree_regressor = tree.DecisionTreeRegressor(max_depth=depth, random_state=1)
+    if tree_regressor.fit(X_train,y_train).tree_.max_depth < depth:
+        break
+    score_depth = np.mean(cross_val_score(tree_regressor, X, y, scoring='neg_mean_squared_error', cv=cv))
+    print(depth,score_depth)
+
+# depth 9 have less score compared to other depth values
+
+# Results:
+# score = np.mean(cross_val_score(tree_regressor, X, y, scoring='neg_mean_squared_error', cv=cv))
+# 1 -13247943.420627367
+# 2 -10510672.377096811
+# 3 -8250142.040627992
+# 4 -5999409.474873242
+# 5 -3909488.221551772
+# 6 -2426197.886180152
+# 7 -1738341.1798021798
+# 8 -1398207.0646736831
+# 9 -1106418.8964559727
+
+#%%
+
+GBR1 = GradientBoostingRegressor()
+GBR1.fit(X_train,y_train)
+y_pred = GBR1.predict(X_test)
+y_pred_train1=GBR1.predict(X_train)
+score = np.mean(cross_val_score(GBR1, X, y, scoring='neg_mean_squared_error', cv=cv, n_jobs=-1))
+
+baseline_errors = abs(y_pred - y_test)
+baseline_mape = 100 * np.mean((baseline_errors / y_test))
+baseline_accuracy = 100 - baseline_mape
+
+print('Metrics for Gradient boosting model for baseline')
+print("cross_val_score: ", round(score, 2))
+print("Mean squared error: ", mean_squared_error(y_test, y_pred))
+print('Average absolute error:', round(np.mean(baseline_errors), 2))
+
+print('mean absolute percentage error (MAPE):', baseline_mape)
+print('Accuracy:', round(baseline_accuracy, 2), '%.')
+
+print("Train R2 score: ", round(r2_score(y_train,y_pred_train1),4))
+print("Test R2 score: ", round(r2_score(y_test,y_pred),4))
+
+# Results: 
+# Metrics for Gradient boosting model for baseline
+# cross_val_score:  -354295.11
+# Mean squared error:  356467.4813048484
+# Average absolute error: 476.51
+# mean absolute percentage error (MAPE): 3.085583236997528
+# Accuracy: 96.91 %.
+
+# Train R2 score:  0.9818
+# Test R2 score:  0.9817
+
+
+# NMSE - lower, AAE - lower, MAPE - lower, R2 - higher.
+
+#%%
+#### Hyperparameter tuning :
+
+# Running these codes for parameter tuning takes longer time:
+
+# GBR = GradientBoostingRegressor()
+# search_grid = {'n_estimators': [19,25,50], 'learning_rate': [0.2,0.5,0.8], 'max_depth': [9,10,12], 'random_state': [1]}
+# search = GridSearchCV(estimator=GBR, param_grid=search_grid, scoring='neg_mean_squared_error', verbose=2, n_jobs=-1, cv=5)
+# search.fit(X_train,y_train)
+# print(search.best_params_)
+# print(search.best_score_)
+# print(search.best_estimator_)
+
+# Results:
+# GradientBoostingRegressor(learning_rate=0.8, max_depth=9, n_estimators=25,random_state=1)
+
+#%%
+
+#### modeling gradient boosting after tuning:
+
+GBR2 = GradientBoostingRegressor(n_estimators=25, learning_rate=0.8, subsample= 0.9, max_depth=9, random_state=1)
+GBR2.fit(X_train,y_train)
+y_pred = GBR2.predict(X_test)
+y_pred_train2=GBR2.predict(X_train)
+score = np.mean(cross_val_score(GBR2, X, y, scoring='neg_mean_squared_error', cv=cv, n_jobs=-1))
+
+errors = abs(y_pred - y_test)
+mape = 100 * np.mean((errors / y_test))
+accuracy = 100 - mape
+
+print('Metrics for Gradient boosting model after tuning')
+print("cross_val_score: ", round(score, 2))
+print("Mean squared error: ", mean_squared_error(y_test, y_pred))
+print('Average absolute error:', round(np.mean(errors), 2))
+
+print('mean absolute percentage error (MAPE):', mape)
+print('Accuracy:', round(accuracy, 2), '%.')
+
+print("Train R2 score: ", round(r2_score(y_train,y_pred_train2),4))
+print("Test R2 score: ", round(r2_score(y_test,y_pred),4))
+
+# Results:
+# Metrics for Gradient boosting model after tuning
+# cross_val_score:  -122656.38
+# Mean squared error:  126511.28304750347
+# Average absolute error: 292.57
+# mean absolute percentage error (MAPE): 1.899894828242299
+# Accuracy: 98.1 %.
+
+# Train R2 score:  0.9941
+# Test R2 score:  0.9935
 
 
 #%%
 
+#### Variable importance:
 
-###################################################################################3
+feature_list = list(X.columns)
+importances = list(GBR1.feature_importances_)
+# List of tuples with variable and importance
+feature_importances = [(feature, round(importance, 2)) for feature, importance in zip(feature_list, importances)]
+# Sort the feature importances by most important first
+feature_importances = sorted(feature_importances, key = lambda x: x[1], reverse = True)
+# Print out the feature and importances 
+[print('Variable: {:20} Importance: {}'.format(*pair)) for pair in feature_importances]
 
-# %%
-# Question 2
-# Using the statsmodels package, 
-# build a logistic regression model for survival. Include the features that you find plausible. 
-# Make sure categorical variables are use properly. If the coefficient(s) turns out insignificant, drop it and re-build.
-# 
-# 
+plt.style.use('fivethirtyeight')
+x_values = list(range(len(importances)))
+plt.bar(x_values, importances, orientation = 'vertical', color = 'r', edgecolor = 'k', linewidth = 1.2)
+plt.xticks(x_values, feature_list, rotation='vertical')
+plt.ylabel('Importance'); plt.xlabel('Variable'); plt.title('Variable Importances')
 
-from statsmodels.formula.api import glm
-import statsmodels.api as sm
+# Results:
 
-survivedLogit = glm(formula='survived ~ age+C(pclass)+C(sex)+C(sibsp)+C(parch)+fare+C(embarked)', data=titanic, family=sm.families.Binomial())
-survivedLogitfit = survivedLogit.fit()
-print( survivedLogitfit.summary() )
+# Variable: smoker               Importance: 0.33
+# Variable: coverage_level       Importance: 0.22
+# Variable: medical_history      Importance: 0.18
+# Variable: family_medical_history Importance: 0.18
+# Variable: exercise_frequency   Importance: 0.03
+# Variable: occupation           Importance: 0.03
+# Variable: gender               Importance: 0.01
+# Variable: bmi                  Importance: 0.01
+# Variable: children             Importance: 0.01
+# Variable: age                  Importance: 0.0
+# Variable: region               Importance: 0.0
 
-# The model turns out having very high p-value for sibsp, parch, fare and embarked for almost all levels. 
-# Thus, removing them for simpler model.
+#  smoker, medical_history, family_medical_history, coverage_level - higher related features.
+
 
 #%%
-#  
-# rebuilding:
-survivedLogit = glm(formula='survived ~ age+C(pclass)+C(sex)', data=titanic, family=sm.families.Binomial())
-survivedLogitfit = survivedLogit.fit()
-print( survivedLogitfit.summary() )
 
-#%% 
-# Question 3
-# Interpret your result. 
-# What are the factors and how do they affect the chance of survival (or the survival odds ratio)? 
-# What is the predicted probability of survival for a 30-year-old female with a second class ticket, 
-# no siblings, 3 parents/children on the trip? Use whatever variables that are relevant in your model.
-# 
+########## XG Boost Regression:
 
-# Intercept: The intercept is the log-odds of survival when all other predictor variables
-#  are zero (2.855). odds ratio - exp(2.8255)
-# exp(-0.9289) - odds ratio of second class. exp(-2.1722) - odds ratio of third class.
-# exp(-2.6291) - odds ratio of male
-# exp(-0.0161) - odds ratio of age
-print(np.exp(survivedLogitfit.params)) # calculates exp of coeff
+#### Baseline model:
 
-# logistic regression model in log-odds (logit) form:
-# Logit(p) = 2.8255 + (-0.0161 * age) - 2.6291 (if male) - 0.9289 (if pclass 2) - 2.1722 (if pclass 3)
+XG1 = XGBRegressor()
+XG1.fit(X_train,y_train)
+y_pred = XG1.predict(X_test)
+y_pred_train3 = XG1.predict(X_train)
 
-# logistic regression model in odds ratio form:
-# p/(1-p) = 16.87 * 0.984062^age * 0.072142 (if male) * 0.394998 (if pclass 2) * 0.113926 (if pclass 3)
+score = np.mean(cross_val_score(XG1, X, y, scoring='neg_mean_squared_error', cv=cv, n_jobs=-1))
 
-predict = survivedLogitfit.predict( {'age':30, 'pclass':2, 'sex':'female'}) # You can either put in a dataframe or dictionary with all the relevant values here to make a prediction.
-print(f'\nThe model prediction of the survival probabilty is {(predict[0]*100).__round__(1)}%')
+baseline_errors = abs(y_pred - y_test)
+baseline_mape = 100 * np.mean((baseline_errors / y_test))
+baseline_accuracy = 100 - baseline_mape
 
-# 
+print('Metrics for XG Boost model for baseline')
+print("cross_val_score: ", round(score, 2))
+print("Mean squared error: ", mean_squared_error(y_test, y_pred))
+print('Average absolute error:', round(np.mean(baseline_errors), 2))
+
+print('mean absolute percentage error (MAPE):', baseline_mape)
+print('Accuracy:', round(baseline_accuracy, 2), '%.')
+
+print("Train R2 score: ", round(r2_score(y_train,y_pred_train3),4))
+print("Test R2 score: ", round(r2_score(y_test,y_pred),4))
+
+# Results:
+# Metrics for XG Boost model for baseline
+# cross_val_score:  -119241.14
+# Mean squared error:  120503.16185165636
+# Average absolute error: 286.93
+# mean absolute percentage error (MAPE): 1.8464141812974073
+# Accuracy: 98.15 %.
+# Train R2 score:  0.9939
+# Test R2 score:  0.9938
+
+# NMSE - lower, AAE - lower, MAPE - lower, R2 - higher.
+
 #%%
-# Question 4
-# Now use the sklearn package, perform the same model and analysis as in Question 3. 
-# In sklearn however, it is easy to set up the train-test split before we build the model. 
-# Use 67-33 split to solve this problem. 
-# Find out the accuracy score of the model.
-# 
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, precision_score, recall_score
+# Hyperparameter tuning :
 
-X = titanic[['age','pclass','sex']]
-y = titanic['survived']
-X.head()
-#X.dtypes
-# converting object datatype to int
-X.loc[X['sex'] == 'male', 'sex'] = 1
-X.loc[X['sex'] == 'female', 'sex'] = 0
+# Running these codes for parameter tuning takes longer time:
 
-# splitting the dataset to train and test
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
-model = LogisticRegression()
-model.fit(X_train, y_train)
+# XG = XGBRegressor()
+# search_grid = {'n_estimators': [15,20,200], 'gamma':[0,0.15,0.3,0.5,1], 'max_depth': [4,5,9], 'random_state': [1]}
+# search = GridSearchCV(estimator=XG, param_grid=search_grid, scoring='neg_mean_squared_error', n_jobs=-1, cv=cv)
+# search.fit(X_train,y_train)
+# print(search.best_params_)
+# print(search.best_score_)
+# print(search.best_estimator_)
 
-y_pred = model.predict(X_test)
-accuracy = accuracy_score(y_test, y_pred)
-print('Accuracy:', accuracy.round(2))
-# 
-# 
+# Results:
+# XGBRegressor(n_estimators=200, gamma=0, max_depth=4, random_state=1)
+
 #%%
-# Question 5
-# Try three different cut-off values at 0.3, 0.5, and 0.7. What are the 
-# a)	Total accuracy of the model
-# b)	The precision of the model for 0 and for 1
-# c)	The recall rate of the model for 0 and for 1
-# 
-from sklearn.metrics import accuracy_score, precision_score, recall_score, confusion_matrix
-from sklearn.metrics import classification_report
 
-cutOffValues = [0.3, 0.5, 0.7]
-for cutOff in cutOffValues:
-    print(f"For cutoff = {cutOff}")
-    y_pred_prob = model.predict(X_test)
-    y_pred = [1 if prob >= cutOff else 0 for prob in y_pred_prob]
-    print(classification_report(y_test, y_pred))
+# modeling gradient boosting after tuning:
 
-# 
-#%% 
-# Question 6
-# By using cross-validation, re-do the logit regression, and evaluate 
-# the 10-fold average accuracy of the logit model. 
-# Use the same predictors you had from previous questions.
-#
-from numpy import mean
-from sklearn.model_selection import KFold
-from sklearn.model_selection import cross_val_score
+XG2 = XGBRegressor(n_estimators=200, gama=0.3, max_depth=4, random_state=1)
+XG2.fit(X_train,y_train)
+y_pred = XG2.predict(X_test)
+y_pred_train4=XG2.predict(X_train)
+score = np.mean(cross_val_score(XG2, X, y, scoring='neg_mean_squared_error', cv=cv, n_jobs=-1))
 
-model = LogisticRegression()
-kf = KFold(n_splits=10, shuffle=True, random_state=42)
-scores = cross_val_score(model, X, y, cv=kf, scoring='accuracy')
-print('Average Accuracy: %.3f ' % (mean(scores)))
-#
+# -225094.9911112765
+
+errors = abs(y_pred - y_test)
+mape = 100 * np.mean((errors / y_test))
+accuracy = 100 - mape
+
+print('Metrics for XG Boost model after tuning')
+print("cross_val_score: ", round(score, 2))
+print("Mean squared error: ", mean_squared_error(y_test, y_pred))
+print('Average absolute error:', round(np.mean(errors), 2))
+
+print('mean absolute percentage error (MAPE):', mape)
+print('Accuracy:', round(accuracy, 2), '%.')
+
+print("Train R2 score: ", round(r2_score(y_train,y_pred_train4),4))
+print("Test R2 score: ", round(r2_score(y_test,y_pred),4))
+
+# Results:
+# Metrics for XG Boost model after tuning
+# cross_val_score:  -103237.37
+# Mean squared error:  103509.93648385104
+# Average absolute error: 270.27
+# mean absolute percentage error (MAPE): 1.7459202766297914
+# Accuracy: 98.25 %.
+
+# Train R2 score:  0.9941
+# Test R2 score:  0.9947
+
+#%%
+
+#### Final Model with important features:
+
+features=pd.DataFrame(data=XG2.feature_importances_,index=X.columns,columns=['Importance'])
+important_features=features[features['Importance']>0.04]
+print("Important Features: \n", important_features.sort_values(by="Importance"))
+
+Xf= df[['smoker', 'coverage_level', 'medical_history', 'family_medical_history', 'exercise_frequency']]
+xtrain,xtest,ytrain,ytest=train_test_split(Xf,y,test_size=0.33,random_state=42)
+finalmodel=XGBRegressor(n_estimators=200, gamma=0.3, max_depth=4, random_state=1)
+finalmodel.fit(xtrain,ytrain)
+ypred_train_final=finalmodel.predict(xtrain)
+ypred_test_final=finalmodel.predict(xtest)
+
+errors = abs(y_pred - y_test)
+mape = 100 * np.mean((errors / y_test))
+accuracy = 100 - mape
+
+print('Metrics for Final model of important features')
+print("Mean squared error: ", mean_squared_error(y_test, y_pred))
+print('Average absolute error:', round(np.mean(errors), 2))
+
+print('mean absolute percentage error (MAPE):', mape)
+print('Accuracy:', round(accuracy, 2), '%.')
+
+print("Train R2 score: ", round(r2_score(y_train,y_pred_train4),4))
+print("Test R2 score: ", round(r2_score(y_test,y_pred),4))
+
+# Results:
+# Metrics for Final model of important features
+# Mean squared error:  103509.93648385104
+# Average absolute error: 270.27
+# mean absolute percentage error (MAPE): 1.7459202766297914
+# Accuracy: 98.25 %.
+
+# Train R2 score:  0.9947
+# Test R2 score:  0.9947
+
+###################################################################################
 
 # %%
