@@ -167,39 +167,39 @@ print(model.summary())
 
 # %%
 import pandas as pd
-import numpy as np
-from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
+from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error                   
 
-X = df[['age','bmi', 'smoker', 'medical_history', 'family_medical_history', 'occupation', 'coverage_level']]
+X = df[['age','gender' , 'bmi','smoker', 'medical_history', 'family_medical_history', 'occupation','coverage_level']]
 y = df['charges']
 
-X_encoded = pd.get_dummies(X, columns=['bmi','smoker', 'medical_history', 'family_medical_history', 'occupation', 'coverage_level'], drop_first=True)
+X_encoded = pd.get_dummies(X, columns=['gender','smoker', 'medical_history', 'family_medical_history', 'occupation','coverage_level'], drop_first=True)
 
-xtrain, xtest, ytrain, ytest = train_test_split(X_encoded, y, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X_encoded, y, test_size=0.2, random_state=42)
 
 lrmodel = LinearRegression()
-lrmodel.fit(xtrain, ytrain)
+lrmodel.fit(X_train, y_train)
 
-y_pred = lrmodel.predict(xtest)
 
-r2 = r2_score(ytest, y_pred)
+y_pred_train = lrmodel.predict(X_train)
+y_pred_test = lrmodel.predict(X_test)
 
-errors = abs(y_pred - ytest)
 
-mape = 100 * np.mean((errors / ytest))
-
+r2_train = r2_score(y_train, y_pred_train)
+r2_test = r2_score(y_test, y_pred_test)
+errors = abs(y_pred_test - y_test)
+mape = 100 * np.mean((errors / y_test))
 accuracy = 100 - mape
 
 
-print(f'R-squared on the training: {lrmodel.score(xtrain, ytrain)}')
-print(f'R-squared on the test: {lrmodel.score(xtest, ytest)}')
-print("Mean squared error: ", mean_squared_error(ytest, y_pred))
+print("Mean squared error: ", mean_squared_error(y_test, y_pred_test))
 print('Average absolute error:', round(np.mean(errors), 2))
-print('mean absolute percentage error (MAPE):', mape)
+print('Mean absolute percentage error (MAPE):', mape)
 print('Accuracy:', round(accuracy, 2), '%.')
-print(f'Cross-validated R-squared: {cross_val_score(lrmodel, X_encoded, y, cv=5).mean()}')
+
+print(f'R-squared on the training set: {r2_train}')
+print(f'R-squared on the test set: {r2_test}')
 
 
 # %%
