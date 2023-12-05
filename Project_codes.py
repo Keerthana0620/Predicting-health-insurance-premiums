@@ -745,9 +745,91 @@ print("VIF Data: \n", vif_data)
 #####################
 
 ########## Linear Regression:
+bmi_bins = [0, 18.5, 24.9, 29.9, float('inf')]
+bmi_labels = ['Underweight', 'Normal weight', 'Overweight', 'Obesity']
 
+df['bmi_category'] = pd.cut(df['bmi'], bins=bmi_bins, labels=bmi_labels, right=False)
+gender_dummy = pd.get_dummies(df['gender'], drop_first=True)
+smoker_dummy = pd.get_dummies(df['smoker'], prefix='smoke', drop_first=True)
+medical_history_dummies = pd.get_dummies(df['medical_history'], drop_first=True)
+family_medical_history_dummies = pd.get_dummies(df['family_medical_history'], prefix='family_medical_history', drop_first=True)
+exercise_frequency_dummies = pd.get_dummies(df['exercise_frequency'], drop_first=True)
+occupation_dummies = pd.get_dummies(df['occupation'], drop_first=True)
+coverage_level_dummies = pd.get_dummies(df['coverage_level'], drop_first=True)
+
+
+formula = 'charges ~ age + bmi_category + smoker +medical_history+family_medical_history+exercise_frequency+occupation+coverage_level'
+
+model = sm.OLS.from_formula(formula, data=df).fit()
+
+print(model.summary())
+
+#%%
+########## Linear Regression Model ##########
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error  
+
+X = df[['age','gender' , 'bmi','smoker', 'medical_history', 'family_medical_history', 'occupation','coverage_level']]
+y = df['charges']
+
+X_encoded = pd.get_dummies(X, columns=['gender','smoker', 'medical_history', 'family_medical_history', 'occupation','coverage_level'], drop_first=True)
+
+X_train, X_test, y_train, y_test = train_test_split(X_encoded, y, test_size=0.2, random_state=42)
+
+lrmodel = LinearRegression()
+lrmodel.fit(X_train, y_train)
+
+
+y_pred_train = lrmodel.predict(X_train)
+y_pred_test = lrmodel.predict(X_test)
+
+
+r2_train = r2_score(y_train, y_pred_train)
+r2_test = r2_score(y_test, y_pred_test)
+errors = abs(y_pred_test - y_test)
+mape = 100 * np.mean((errors / y_test))
+accuracy = 100 - mape
+
+
+print("Mean squared error: ", mean_squared_error(y_test, y_pred_test))
+print('Average absolute error:', round(np.mean(errors), 2))
+print('Mean absolute percentage error (MAPE):', mape)
+print('Accuracy:', round(accuracy, 2), '%.')
+
+print(f'R-squared on the training set: {r2_train}')
+print(f'R-squared on the test set: {r2_test}')
+
+#%%
 #### Interpretation of Data:
 
+########### LR Results Plot ##################
+results_train = pd.DataFrame({'Actual': y_train, 'Predicted': y_pred_train})
+results_test = pd.DataFrame({'Actual': y_test, 'Predicted': y_pred_test})
+
+plt.figure(figsize=(12, 6))
+
+plt.subplot(1, 2, 1)
+sns.scatterplot(data=results_train.head(100), x='Actual', y='Predicted')
+plt.plot(results_train.head(100)['Actual'], results_train.head(100)['Actual'], color='red', linestyle='--')
+plt.title('Training Set: Actual vs Predicted Charges')
+plt.xlabel('Actual Charges')
+plt.ylabel('Predicted Charges')
+
+plt.subplot(1, 2, 2)
+sns.scatterplot(data=results_test.head(100), x='Actual', y='Predicted')
+plt.plot(results_test.head(100)['Actual'], results_test.head(100)['Actual'], color='red', linestyle='--')
+plt.title('Testing Set: Actual vs Predicted Charges')
+plt.xlabel('Actual Charges')
+plt.ylabel('Predicted Charges')
+
+plt.tight_layout()
+plt.show()
+
+
+#%%
 ########## Support Vector Regression:
 
 ########## Random Forest Regression:

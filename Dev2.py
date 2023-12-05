@@ -141,6 +141,74 @@ print("BMI Distribution by Occupation:")
 print(bmi_occupation_percentages.applymap(lambda x: f'{x:.2f}%'))
 
 #%%
+
+from scipy.stats import ttest_ind
+
+smoker_charges = df[df['smoker'] == 'yes']['charges']
+non_smoker_charges = df[df['smoker'] == 'no']['charges']
+
+t_stat, p_value = ttest_ind(smoker_charges, non_smoker_charges)
+print(f'T-statistic: {t_stat}, p-value: {p_value}')
+
+#%%
+
+from scipy.stats import f_oneway
+
+charges_by_region = [df['charges'][df['region'] == region] for region in df['region'].unique()]
+
+f_statistic, p_value = f_oneway(*charges_by_region)
+
+print(f"F-statistic: {f_statistic}")
+print(f"P-value: {p_value}")
+
+'''
+There is a significant difference in charges between different regions.
+'''
+
+#%%
+from scipy.stats import chi2_contingency
+
+contingency_table = pd.crosstab(df['gender'], df['medical_history'])
+
+chi2, p, dof, expected = chi2_contingency(contingency_table)
+
+print("Chi-square test for independence between gender and medical history:")
+print(f"Chi2 value: {chi2}")
+print(f"P-value: {p}")
+
+'''
+There's no Significant assosciation between Gender and Medical history of an individual
+'''
+
+#%%
+from scipy.stats import f_oneway
+
+
+grouped_data = [df[df['occupation'] == occupation]['charges'] for occupation in df['occupation'].unique()]
+
+
+f_statistic, p_value = f_oneway(*grouped_data)
+
+print(f"F-statistic: {f_statistic}")
+print(f"P-value: {p_value}")
+
+'''
+There is a significant difference in charges among different occupations.
+'''
+#%%
+import pandas as pd
+from scipy.stats import f_oneway
+
+exercise_levels = df['exercise_frequency'].unique()
+
+charges_by_group = {level: df[df['exercise_frequency'] == level]['charges'] for level in exercise_levels}
+
+f_statistic, p_value = f_oneway(*charges_by_group.values())
+
+print(f'F-statistic: {f_statistic}')
+print(f'P-value: {p_value}')
+
+#%%
 import pandas as pd
 import statsmodels.api as sm
 
@@ -202,4 +270,29 @@ print(f'R-squared on the training set: {r2_train}')
 print(f'R-squared on the test set: {r2_test}')
 
 
+# %%
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+results_train = pd.DataFrame({'Actual': y_train, 'Predicted': y_pred_train})
+results_test = pd.DataFrame({'Actual': y_test, 'Predicted': y_pred_test})
+
+plt.figure(figsize=(12, 6))
+
+plt.subplot(1, 2, 1)
+sns.scatterplot(data=results_train.head(100), x='Actual', y='Predicted')
+plt.plot(results_train.head(100)['Actual'], results_train.head(100)['Actual'], color='red', linestyle='--')
+plt.title('Training Set: Actual vs Predicted Charges')
+plt.xlabel('Actual Charges')
+plt.ylabel('Predicted Charges')
+
+plt.subplot(1, 2, 2)
+sns.scatterplot(data=results_test.head(100), x='Actual', y='Predicted')
+plt.plot(results_test.head(100)['Actual'], results_test.head(100)['Actual'], color='red', linestyle='--')
+plt.title('Testing Set: Actual vs Predicted Charges')
+plt.xlabel('Actual Charges')
+plt.ylabel('Predicted Charges')
+
+plt.tight_layout()
+plt.show()
 # %%
