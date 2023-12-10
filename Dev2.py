@@ -150,6 +150,10 @@ non_smoker_charges = df[df['smoker'] == 'no']['charges']
 t_stat, p_value = ttest_ind(smoker_charges, non_smoker_charges)
 print(f'T-statistic: {t_stat}, p-value: {p_value}')
 
+'''
+T-statistic: 686.9351780779127, p-value: 0.0
+'''
+
 #%%
 
 from scipy.stats import f_oneway
@@ -163,6 +167,9 @@ print(f"P-value: {p_value}")
 
 '''
 There is a significant difference in charges between different regions.
+F-statistic: 1644.2059645503782
+P-value: 0.0
+
 '''
 
 #%%
@@ -177,6 +184,9 @@ print(f"Chi2 value: {chi2}")
 print(f"P-value: {p}")
 
 '''
+Chi-square test for independence between gender and medical history:
+Chi2 value: 3.426201023953485
+P-value: 0.33046048711039894
 There's no Significant assosciation between Gender and Medical history of an individual
 '''
 
@@ -193,6 +203,8 @@ print(f"F-statistic: {f_statistic}")
 print(f"P-value: {p_value}")
 
 '''
+F-statistic: 10960.740716743454
+P-value: 0.0
 There is a significant difference in charges among different occupations.
 '''
 #%%
@@ -207,6 +219,11 @@ f_statistic, p_value = f_oneway(*charges_by_group.values())
 
 print(f'F-statistic: {f_statistic}')
 print(f'P-value: {p_value}')
+
+'''
+F-statistic: 9594.186867640998
+P-value: 0.0
+'''
 
 #%%
 import pandas as pd
