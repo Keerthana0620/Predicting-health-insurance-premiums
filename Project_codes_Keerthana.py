@@ -47,6 +47,10 @@ from scipy.stats import f_oneway
 from scipy.stats import chi2_contingency
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error  
+from sklearn.svm import SVR
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn import tree
 from sklearn.tree import DecisionTreeRegressor 
@@ -55,8 +59,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import KFold
 from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import mean_squared_error
-from sklearn.metrics import r2_score
 
 ##################################################
 #<<<<<<<<<<<<<<<< End of Section >>>>>>>>>>>>>>>>#
@@ -168,13 +170,22 @@ print (df.head())
 """ 
 male : 1, female : 0 
 smoker : 1, non smoker : 0
-medical_history: Heart disease- 1,High blood pressure- 2,Diabetes- 0, None- 3
-region: southeast-2 , northwest-1 ,southwest- 3, northeast- 0
+medical_history: Diabetes- 0, Heart disease- 1, High blood pressure- 2, None- 3
+region: northeast- 0, northwest-1 , southeast-2 , southwest- 3, 
 family_medical_history: Heart disease- 1,High blood pressure- 2,Diabetes- 0, None- 3
 exercise_frequency: Frequently-0 ,never-1 ,occasionaly-2 ,rarely-3 
 occupation : blue collar- 0, student- 1,unemployed- 2,whitecollar- 3
 coverage_level : Basic- 0,Premium- 1,Standard- 2  
 """
+
+#%%
+
+# df[['age', 'bmi', 'children']] = scaler.fit_transform(df[['age', 'bmi', 'children']])
+df = pd.get_dummies(df,columns=['gender', 'smoker', 'region', 'medical_history', 'family_medical_history', 'exercise_frequency', 'occupation', 'coverage_level'])
+boolean_columns = df.select_dtypes(include='bool').columns
+
+for i in boolean_columns:
+    df[i] = df[i].astype(int)
 
 #%%
 print("Data Types after conversion \n")
@@ -220,21 +231,6 @@ plt.show()
 # age and charges are almost linear to each other.
 # Thus, when age increase charges increase.
 
-#%%
-
-# Scatter plot of BMI vs charges:
-
-bmi = pd.pivot_table(df, values='charges', columns='bmi', aggfunc='mean')
-melt_bmi = pd.melt(bmi, var_name='bmi', value_name='average_charges')
-
-sns.scatterplot(x='bmi', y='average_charges', data=melt_bmi, alpha=0.5, color='orange')
-
-plt.title('Scatter Plot of Average Charges for each bmi')
-plt.xlabel('bmi')
-plt.ylabel('Average Charges')
-plt.show()
-
-# bmi and charges are almost linear to each other.
 
 #%%
 
@@ -242,15 +238,12 @@ print('\nGraphical Exploration of categorical variables:\n')
 
 # Coverage level vs Charges:
 
-df['coverage_level'].value_counts()
-# Coverage level count is more in Basic and least in Premium
-
 plt.figure(figsize=(10, 6))
 
 # Create a box plot between charges and coverage_level.
 df.boxplot(column='charges', by='coverage_level', vert=False, flierprops={'marker': 'o', 'markerfacecolor': 'red', 'markersize': 5})
 plt.suptitle('')  # Remove the default title
-plt.xticks(rotation=45, ha='right')  # Rotate x-axis labels for better readability
+plt.xticks(rotation=45, ha='right') 
 plt.title('Box Plot of Charges by coverage_level')
 plt.xlabel('Charges')
 plt.ylabel('coverage_level')
@@ -263,46 +256,22 @@ plt.show()
 
 #%%
 
-# KDE plot of charges vs smoker
+# Smoker vs Charges :
 
 print("Smoker counts: ", df['smoker'].value_counts())
+# Smoker count is more 
 
 sns.set(style="whitegrid")
 # Create a KDE plot
 plt.figure(figsize=(10, 6))
 sns.kdeplot(data=df, x='charges', hue='smoker', fill=True, common_norm=False, palette='viridis')
-# Set plot labels and title
 plt.xlabel('Charges')
 plt.ylabel('Density')
 plt.title('KDE Plot of Charges vs. Smoker')
-# Show the plot
 plt.show()
 
 # The KDE plot clearly illustrates that more of Smokers tend to incur higher charges 
 # compared to non-smokers.
-
-
-#%%
-
-# Gender vs Charges:
-
-print("Gender counts: ", df['gender'].value_counts())
-# male      500107
-# female    499893
-
-plt.figure(figsize=(10, 6))
-sns.barplot(data=df, x='gender', y='charges', palette='pastel')
-# Set plot labels and title
-plt.xlabel('Gender')
-plt.ylabel('Charges')
-plt.title('Barplot of Charges vs. Gender')
-# Show the plot
-plt.show()
-
-# On average, males tend to give higher charges than females. 
-# Additionally, the maximum charge in the dataset is paid by a male, while the 
-# minimum charges are associated with females.
-
 
 #%%
 
@@ -344,6 +313,25 @@ plt.tight_layout()
 plt.show()
 
 # The average charges are notably higher for individuals with heart disease, followed by those with diabetes in family_medical_history.
+
+#%%
+
+# Gender vs Charges:
+
+print("Gender counts: ", df['gender'].value_counts())
+# male      500107
+# female    499893
+
+plt.figure(figsize=(10, 6))
+sns.barplot(data=df, x='gender', y='charges', palette='pastel')
+plt.xlabel('Gender')
+plt.ylabel('Charges')
+plt.title('Barplot of Charges vs. Gender')
+plt.show()
+
+# On average, males tend to give higher charges than females. 
+# Additionally, the maximum charge in the dataset is paid by a male, while the 
+# minimum charges are associated with females.
 
 #%%
 
@@ -463,6 +451,29 @@ plt.show()
 # Conversely, the lowest charges are observed among individuals with no exercise regimen and no 
 # smoking habit.
 
+#%%
+
+# medical_freq vs smoker vs charges
+
+sns.set(style="whitegrid")
+# Create a grouped bar chart
+plt.figure(figsize=(12, 8))
+sns.barplot(data=df, x='medical_history', y='charges', hue='smoker', palette='muted')
+
+# Set plot labels and title
+plt.xlabel('medical history')
+plt.ylabel('Charges')
+plt.title('Smoker vs. Medical History vs. Charges')
+plt.xticks([0,1,2,3], ['Diabets', 'Heart disease', 'High blood pressue', 'None'])
+# Show the legend
+plt.legend(title='Smoker')
+# Show the plot
+plt.show()
+
+# Individuals who have heart disease and have a smoking habit tend to incur higher charges. 
+# Conversely, the lowest charges are observed among individuals with no medical history and no smoking habit.
+
+
 ##################################################
 #<<<<<<<<<<<<<<<< End of Section >>>>>>>>>>>>>>>>#
 
@@ -500,6 +511,8 @@ if p_value < alpha:
 else:
     print(" There is no significant difference in charges between gender")
 
+# Based on both the graphical representation and the results of the t-test, it is 
+# evident that there is variation among the mean values of charges across male and female.
 
 #%%
 
@@ -528,6 +541,9 @@ if p_value < alpha:
 else:
     print(" There is no significant difference in charges between smoker and non-smoker")
 
+# Based on both the graphical representation and the results of the t-test, it is 
+# evident that there is variation among the mean values of charges across smokers and non smokers.
+
 #%%
 
 #### One way Anovas
@@ -555,8 +571,11 @@ print(" There is significant difference among the means of medical_history group
 tukey_MH = pairwise_tukeyhsd(endog=df['charges'], groups=df['medical_history'], alpha=0.05)
 print(tukey_MH)
 
-# The Tukey HSD test further confirms that all pairwise differences are statistically significant.
+# Based on both the graphical representation and the results of the one-way ANOVA test, it is 
+# evident that substantial variations exist among the mean values of charges across 
+# different medical history groups.
 
+# The Tukey HSD test further confirms that all pairwise differences are statistically significant.
 
 #%%
 
@@ -583,8 +602,11 @@ print(" There is significant difference among the means of family_medical_histor
 tukey_FMH = pairwise_tukeyhsd(endog=df['charges'], groups=df['family_medical_history'], alpha=0.05)
 print(tukey_FMH)
 
-# The Tukey HSD test further confirms that all pairwise differences are statistically significant.
+# Based on both the bar chart and the results of the one-way ANOVA test, it is 
+# evident that substantial variations exist among the mean values of charges across 
+# different family medical history groups.
 
+# The Tukey HSD test further confirms that all pairwise differences are statistically significant.
 
 #%%
 
@@ -657,20 +679,33 @@ print(f"P-value: {p_value}")
 '''
 There is a significant difference in charges between different regions.
 '''
+tukey_region = pairwise_tukeyhsd(endog=df['charges'], groups=df['region'], alpha=0.05)
+print(tukey_region)
+
+# The ANOVA test revealed significantly different mean insurance charges among four regions 
+# Subsequent Tukey HSD analysis indicated specific pairwise differences in mean charges.
 
 #%%
 
-### TWO-WAY ANOVAs
+### 2 way ANOVA
 
-# Charges vs smoker vs gender 
-twoway_model = ols('charges ~ C(smoker) + age + C(smoker):age',
+twoway_model1 = ols('charges ~ C(medical_history) + C(exercise_frequency) + C(medical_history):C(exercise_frequency)',
             data=df).fit()
-result = sm.stats.anova_lm(twoway_model, type=2)
+result = sm.stats.anova_lm(twoway_model1, type=2)
 print(result, "\n")
 
-# there are significant differences in the means of the response variable between different levels of "smoker."
-# there are significant differences in the means of the response variable across different age groups.
-# The interaction effect suggests that the relationship between the response variable and "age" depends on the level of the "smoker" variable
+# The two-way ANOVA results suggest that both 'smoker' and 'exercise_frequency' have a significant impact on the charges. 
+# However, the interaction effect between these two factors is not statistically significant.
+
+#%%
+
+twoway_model2 = ols('charges ~ C(exercise_frequency) + C(smoker) + C(smoker):C(exercise_frequency)',
+            data=df).fit()
+result = sm.stats.anova_lm(twoway_model2, type=2)
+print(result, "\n")
+
+# The two-way ANOVA results suggest that both 'smoker' and 'medical_history' have a significant impact on the charges. 
+# the interaction effect between these two factors is also statistically significant.
 
 #%%
 
@@ -703,39 +738,23 @@ print(f"Chi2 value: {chi2}")
 print(f"P-value: {p}")
 
 '''
-There is significant assosciation between smoker and Medical history of an individual
+There is no significant assosciation between smoker and Medical history of an individual
 '''
 
 #%%
 
-# smoker vs family medical history
+# smoker vs exercise frequency
 
-contingency_table = pd.crosstab(df['smoker'], df['family_medical_history'])
+contingency_table = pd.crosstab(df['smoker'], df['exercise_frequency'])
 
 chi2, p, dof, expected = chi2_contingency(contingency_table)
 
-print("Chi-square test for independence between smoker and family medical history:")
+print("Chi-square test for independence between smoker and exercise_frequency:")
 print(f"Chi2 value: {chi2}")
 print(f"P-value: {p}")
 
 '''
-There is significant assosciation between smoker and family Medical history of an individual
-'''
-
-#%%
-
-# smoker vs coverage level
-
-contingency_table = pd.crosstab(df['smoker'], df['coverage_level'])
-
-chi2, p, dof, expected = chi2_contingency(contingency_table)
-
-print("Chi-square test for independence between smoker and coverage level:")
-print(f"Chi2 value: {chi2}")
-print(f"P-value: {p}")
-
-'''
-There is significant assosciation between smoker and coverage level of an individual
+There is significant assosciation between smoker and exercise_frequency of an individual
 '''
 
 ##################################################
@@ -747,10 +766,38 @@ There is significant assosciation between smoker and coverage level of an indivi
 # Inference 
 #####################
 
-# Smoker : medical history
+# Smart question 2 : In comparison to non-smokers, how much does being a "smoker" add to the rise in
+# insurance costs?
+# Smoker vs charges
 
-model1 = sm.OLS.from_formula('charges ~ C(smoker) : C(medical_history)', data=df).fit()
+model1 = sm.OLS.from_formula('charges ~ C(smoker)', data=df).fit()
 print(model1.summary())
+
+# From the results, we could see that smoker = 1
+# impacts more on charges than smoker = 0, same is viwed from EDA as well
+
+# smoker add 5000.5740 unit to rise in charges than non smokers.
+
+#%%
+
+# Smart question 3 : How much does age impact insurance premiums, and is this impact consistent across
+# different regions?
+
+# age : region
+
+model2 = sm.OLS.from_formula('charges ~ age + age : C(region)', data=df).fit()
+print(model2.summary())
+
+# The impact of age on charges is larger (31.1384) compared to the interaction terms of age with different levels of 'region.'
+# But when compared within the regions. age with region = 0 (northeast) provide impact more on charges than other regions.
+
+#%%
+
+# Smoker : medical history vs charges
+
+model4 = sm.OLS.from_formula('charges ~ C(smoker) : C(medical_history)', data=df).fit()
+print("LR model summary: ")
+print(model4.summary())
 
 # among the groups of medical history, we could see that medical history = 1 (heart disease) 
 # impacts more on charges, same is viwed from EDA as well
@@ -759,39 +806,13 @@ print(model1.summary())
 
 #%%
 
-# Region : coveragelevel
+# charges vs coveragelevel
 
-model2 = sm.OLS.from_formula('charges ~ C(region) : C(coverage_level)', data=df).fit()
-print(model2.summary())
-
-# from EDA and inference, we could see coverage level = 1 (Premium) impacts more on charges
-
-#%%
-
-# medical_history : family_medical_history
-
-model3 = sm.OLS.from_formula('charges ~ C(medical_history) : C(family_medical_history)', data=df).fit()
-print(model3.summary())
+model6 = sm.OLS.from_formula('charges ~ C(coverage_level)', data=df).fit()
+print(model6.summary())
 
 # from EDA and inference, we could see coverage level = 1 (Premium) impacts more on charges
 
-#%%
-
-# age : gender
-
-model4 = sm.OLS.from_formula('charges ~ age : C(gender)', data=df).fit()
-print(model4.summary())
-
-# from EDA and inference, we could see coverage level = 1 (Premium) impacts more on charges
-
-#%%
-
-# medical_history : exercise_frequency
-
-model5 = sm.OLS.from_formula('charges ~ C(medical_history) : C(exercise_frequency)', data=df).fit()
-print(model5.summary())
-
-# from EDA and inference, we could see coverage level = 1 (Premium) impacts more on charges
 
 #%%
 
@@ -845,6 +866,11 @@ print("X_test set shape: ", X_test.shape)
 print("y_test set shape: ", y_test.shape)
 
 #%%
+
+X = df.drop(['charges'], axis=1)
+y = df['charges']
+
+#%%
 #####################
 # Feature Selection 
 #####################
@@ -866,44 +892,48 @@ plt.show()
 
 #%%
 
-#####################
-## Model Selection ##
-#####################
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 
-model = sm.OLS.from_formula('charges ~ C(smoker) + C(medical_history) + C(family_medical_history) + C(coverage_level) + C(occupation) + C(exercise_frequency) + C(region) + C(children) + bmi + age + C(gender)', data=df).fit()
-print(model.summary())
+scaler = StandardScaler()
+X[['age', 'bmi']] = scaler.fit_transform(X[['age', 'bmi']])
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+print("X_Train set shape: ", X_train.shape)
+print("y_Train set shape: ", y_train.shape)
+print("X_test set shape: ", X_test.shape)
+print("y_test set shape: ", y_test.shape)
 
 
 #%%
 
+#####################
+## Model Selection ##
+#####################
+
 ########## Linear Regression Model ##########
 
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error  
-
-X = df[['age','gender' , 'bmi','smoker', 'medical_history', 'family_medical_history', 'occupation','coverage_level']]
+X = df[['age','gender', 'bmi','smoker', 'medical_history', 'family_medical_history', 'occupation','coverage_level']]
 y = df['charges']
 
 X_encoded = pd.get_dummies(X, columns=['gender','smoker', 'medical_history', 'family_medical_history', 'occupation','coverage_level'], drop_first=True)
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+scaler = StandardScaler()
+X_encoded[['age', 'bmi']] = scaler.fit_transform(X_encoded[['age', 'bmi']])
 
 X_train, X_test, y_train, y_test = train_test_split(X_encoded, y, test_size=0.2, random_state=42)
 
 lrmodel = LinearRegression()
 lrmodel.fit(X_train, y_train)
 
-
 y_pred_train = lrmodel.predict(X_train)
 y_pred_test = lrmodel.predict(X_test)
-
 
 r2_train = r2_score(y_train, y_pred_train)
 r2_test = r2_score(y_test, y_pred_test)
 errors = abs(y_pred_test - y_test)
 mape = 100 * np.mean((errors / y_test))
 accuracy = 100 - mape
-
 
 print("Mean squared error: ", mean_squared_error(y_test, y_pred_test))
 print('Average absolute error:', round(np.mean(errors), 2))
@@ -916,7 +946,8 @@ print(f'R-squared on the test set: {r2_test}')
 #%%
 #### Interpretation of Data:
 
-########### LR Results Plot ##################
+##LR Results Plot
+
 results_train = pd.DataFrame({'Actual': y_train, 'Predicted': y_pred_train})
 results_test = pd.DataFrame({'Actual': y_test, 'Predicted': y_pred_test})
 
@@ -953,6 +984,18 @@ sm.qqplot(standardized_residuals, line='45', fit=True)
 plt.title('QQ Plot of Observed vs. Predicted Values')
 plt.show()
 
+#%%
+
+# linear relationship between age 
+
+correlation_coefficient = np.corrcoef(df['age'], df['charges'])[0, 1]
+print(f'Correlation Coefficient: {correlation_coefficient}')
+
+correlation_coefficient = np.corrcoef(df['bmi'], df['charges'])[0, 1]
+print(f'Correlation Coefficient: {correlation_coefficient}')
+
+# Correlation Coefficient: 0.06339041373316799
+# Correlation Coefficient: 0.10442935155994461
 
 #%%
 
@@ -960,30 +1003,8 @@ plt.show()
 
 # Check normality using a normal probability plot (Q-Q plot)
 plt.figure(figsize=(8, 8))
-sm.qqplot(charges, line='45', fit=True)
+sm.qqplot(df['charges'], line='45', fit=True)
 plt.title('Normal Probability Plot of charges')
-plt.show()
-
-#%%
-
-# Normality of age :
-
-age = df['age']
-# Check normality using a normal probability plot (Q-Q plot)
-plt.figure(figsize=(8, 8))
-sm.qqplot(age, line='45', fit=True)
-plt.title('Normal Probability Plot of age')
-plt.show()
-
-#%%
-
-# Normality of bmi :
-
-bmi = df['bmi']
-# Check normality using a normal probability plot (Q-Q plot)
-plt.figure(figsize=(8, 8))
-sm.qqplot(bmi, line='45', fit=True)
-plt.title('Normal Probability Plot of bmi')
 plt.show()
 
 #%%
@@ -1006,27 +1027,20 @@ plt.title('Normal Probability Plot of Residuals')
 plt.show()
 
 #%%
-########## Support Vector Regression:
-
-from sklearn.svm import SVR
+########## Support Vector Regression model ##########
 
 svr = SVR(kernel='linear',C=3)
 
 svr.fit(X_train[:200000], y_train[:200000])
 y_pred = svr.predict(X_test)
 
-mae = mean_absolute_error(y_test, y_pred)
-mse = mean_squared_error(y_test, y_pred)
-r2 = r2_score(y_test, y_pred)
-
-print(f'Mean Absolute Error: {mae}')
-print(f'Mean Squared Error: {mse}')
-print(f'R-squared: {r2}')
-
 # %%
-errors = abs(y_pred - y_test)
 
-print('Metrics for Gradient boosting model after tuning')
+errors = abs(y_pred - y_test)
+mae = mean_absolute_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)   
+
+print('Metrics for SVM model :')
 print("Mean squared error: ", mean_squared_error(y_test, y_pred))
 print('Average absolute error:', round(np.mean(errors), 2))
 # Calculate mean absolute percentage error (MAPE)
@@ -1035,23 +1049,50 @@ print('mean absolute percentage error (MAPE):', mape)
 # Calculate and display accuracy
 accuracy = 100 - mape
 print('Accuracy:', round(accuracy, 2), '%.')
+print(f'Mean Absolute Error: {mae}')
+print(f'R-squared: {r2}')
+
+# Metrics for SVM model :
+# Mean squared error:  9194809.948672732
+# Average absolute error: 2470.98
+# mean absolute percentage error (MAPE): 15.777191941162611
+# Accuracy: 84.22 %.
+# Mean Absolute Error: 2470.9781478290224
+# R-squared: 0.5275195874963398
+
+# with second option
+# Metrics for SVM model :
+# Mean squared error:  83623.51013089206
+# Average absolute error: 250.49
+# mean absolute percentage error (MAPE): 1.6204962885585796
+# Accuracy: 98.38 %.
+# Mean Absolute Error: 250.48841222402845
+# R-squared: 0.9957029595193154
 
 # %%
-########## Random Forest Regression:
+########## Random Forest Regression model ##########
 
-from sklearn.ensemble import RandomForestRegressor
-model = RandomForestRegressor(n_estimators=20, random_state=42)
-model.fit(X_train, y_train)
+rfm = RandomForestRegressor(n_estimators=20, random_state=42)
+rfm.fit(X_train, y_train)
 
-y_pred = model.predict(X_test)
+y_pred = rfm.predict(X_test)
 
 # Evaluate the model
+errors = abs(y_pred - y_test)
 mae = mean_absolute_error(y_test, y_pred)
 mse = mean_squared_error(y_test, y_pred)
 r2 = r2_score(y_test, y_pred)
 
+print('Metrics for Random forest regression model :')
 print(f'Mean Absolute Error: {mae}')
 print(f'Mean Squared Error: {mse}')
+print(f'R-squared: {r2}')
+mape = 100 * np.mean((errors / y_test))
+print('mean absolute percentage error (MAPE):', mape)
+# Calculate and display accuracy
+accuracy = 100 - mape
+print('Accuracy:', round(accuracy, 2), '%.')
+print(f'Mean Absolute Error: {mae}')
 print(f'R-squared: {r2}')
 
 # %%
@@ -1066,7 +1107,7 @@ plt.show()
 
 #%%
 
-########## Gradient Boost Regression:
+########## Gradient Boost Regression ##########
 
 #### Baseline model:
 
@@ -1091,6 +1132,16 @@ for depth in range(1,10):
 # 7 -1738341.1798021798
 # 8 -1398207.0646736831
 # 9 -1106418.8964559727
+
+# 1 -13247943.42
+# 2  -9689109.89
+# 3  -6687578.30
+# 4  -3676228.84
+# 5  -2837936.04
+# 6  -2357374.35
+# 7  -1922768.85
+# 8  -1562168.49
+# 9  -1252018.68
 
 #%%
 
@@ -1126,10 +1177,19 @@ print("Test R2 score: ", round(r2_score(y_test,y_pred),4))
 # Train R2 score:  0.9818
 # Test R2 score:  0.9817
 
+# second option (svr option)
+# Metrics for Gradient boosting model for baseline
+# Mean squared error:  240289.17438117307
+# Average absolute error: 394.81
+# mean absolute percentage error (MAPE): 2.625008797629864
+# Accuracy: 97.37 %.
+# Train R2 score:  0.9878
+# Test R2 score:  0.9877
 
 # NMSE - lower, AAE - lower, MAPE - lower, R2 - higher.
 
 #%%
+
 #### Hyperparameter tuning :
 
 # Running these codes for parameter tuning takes longer time:
@@ -1170,7 +1230,8 @@ print('Accuracy:', round(accuracy, 2), '%.')
 print("Train R2 score: ", round(r2_score(y_train,y_pred_train2),4))
 print("Test R2 score: ", round(r2_score(y_test,y_pred),4))
 
-# Results:
+# Results: label encoding.
+#GBR2 = GradientBoostingRegressor(n_estimators=25, learning_rate=0.8, subsample= 0.9, max_depth=9, random_state=1)
 # Metrics for Gradient boosting model after tuning
 # cross_val_score:  -122656.38
 # Mean squared error:  126511.28304750347
@@ -1181,6 +1242,23 @@ print("Test R2 score: ", round(r2_score(y_test,y_pred),4))
 # Train R2 score:  0.9941
 # Test R2 score:  0.9935
 
+# Metrics for Gradient boosting model after tuning
+# Mean squared error:  142320.90262198035
+# Average absolute error: 308.0
+# mean absolute percentage error (MAPE): 1.993095393673771
+# Accuracy: 98.01 %.
+# Train R2 score:  0.9934
+# Test R2 score:  0.9927
+
+# second choice svr check
+# GBR2 = GradientBoostingRegressor(n_estimators=200, learning_rate=0.6, subsample= 0.9, max_depth=10, random_state=1)
+# Metrics for Gradient boosting model after tuning
+# Mean squared error:  133939.26538929652
+# Average absolute error: 299.77
+# mean absolute percentage error (MAPE): 1.927994322062208
+# Accuracy: 98.07 %.
+# Train R2 score:  0.9969
+# Test R2 score:  0.9931
 
 #%%
 
@@ -1220,7 +1298,7 @@ plt.ylabel('Importance'); plt.xlabel('Variable'); plt.title('Variable Importance
 
 #%%
 
-########## XG Boost Regression:
+########## XG Boost Regression model ##########
 
 #### Baseline model:
 
@@ -1278,7 +1356,7 @@ print("Test R2 score: ", round(r2_score(y_test,y_pred),4))
 
 # modeling gradient boosting after tuning:
 
-XG2 = XGBRegressor(n_estimators=200, gama=0.3, max_depth=4, random_state=1)
+XG2 = XGBRegressor(n_estimators=200, gamma=0.3, max_depth=4, random_state=1)
 XG2.fit(X_train,y_train)
 y_pred = XG2.predict(X_test)
 y_pred_train4=XG2.predict(X_train)
@@ -1301,7 +1379,7 @@ print('Accuracy:', round(accuracy, 2), '%.')
 print("Train R2 score: ", round(r2_score(y_train,y_pred_train4),4))
 print("Test R2 score: ", round(r2_score(y_test,y_pred),4))
 
-# Results:
+# Results:  label encoding
 # Metrics for XG Boost model after tuning
 # cross_val_score:  -103237.37
 # Mean squared error:  103509.93648385104
@@ -1311,6 +1389,23 @@ print("Test R2 score: ", round(r2_score(y_test,y_pred),4))
 
 # Train R2 score:  0.9941
 # Test R2 score:  0.9947
+
+
+XG2 = XGBRegressor(n_estimators=800, gamma=0.5, max_depth=3, random_state=1)
+XG2.fit(X_train,y_train)
+y_pred = XG2.predict(X_test)
+y_pred_train4=XG2.predict(X_train)
+
+# second choice svr  / label encoding.
+XG2 = XGBRegressor(n_estimators=2000, gamma=0.5, max_depth=4, random_state=1)
+# Metrics for XG Boost model after tuning
+# Mean squared error:  85635.9558945334
+# Average absolute error: 252.5
+# mean absolute percentage error (MAPE): 1.6322867577811113
+# Accuracy: 98.37 %.
+# Train R2 score:  0.9958
+# Test R2 score:  0.9956
+
 
 #%%
 
@@ -1338,7 +1433,37 @@ plt.legend()
 plt.grid(True)
 plt.show()
 
+#%%
 
+# dummies and scaling
+models = ['Linear', 'SVR', 'Random Forest', 'Gradient Boosting', 'XG Boost']
+mse_values = [839240.23, 83623.51, 130913.70, 133939.26, 85635.95]
+
+# Plotting the Mean Squared Error
+plt.figure(figsize=(10, 6))
+plt.plot(models, mse_values, marker='o', label='M.S.E')
+plt.title('Mean Squared Error (MSE) for Different Regression Models')
+plt.xlabel('Regression Models')
+plt.ylabel('Mean Squared Error (MSE)')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+#%%
+
+# Label encoding
+models = ['Linear', 'SVR', 'Random Forest','Gradient Boosting', 'XG Boost']
+mse_values = [9157484.04, 9194809.95, 137789.78, 126511.28, 85780.12]
+
+# Plotting the Mean Squared Error
+plt.figure(figsize=(10, 6))
+plt.plot(models, mse_values, marker='o', label='M.S.E')
+plt.title('Mean Squared Error (MSE) for Different Regression Models')
+plt.xlabel('Regression Models')
+plt.ylabel('Mean Squared Error (MSE)')
+plt.legend()
+plt.grid(True)
+plt.show()
 #%%
 
 #### Final Model with important features:
@@ -1347,26 +1472,26 @@ features=pd.DataFrame(data=XG2.feature_importances_,index=X.columns,columns=['Im
 important_features=features[features['Importance']>0.04]
 print("Important Features: \n", important_features.sort_values(by="Importance"))
 
-Xf= df[['smoker', 'coverage_level', 'medical_history', 'family_medical_history', 'exercise_frequency']]
+Xf= df[['smoker', 'coverage_level', 'medical_history', 'family_medical_history', 'occupation']]
 xtrain,xtest,ytrain,ytest=train_test_split(Xf,y,test_size=0.33,random_state=42)
-finalmodel=XGBRegressor(n_estimators=200, gamma=0.3, max_depth=4, random_state=1)
+finalmodel=XGBRegressor(n_estimators=800, gama=0.5, max_depth=3, random_state=1)
 finalmodel.fit(xtrain,ytrain)
 ypred_train_final=finalmodel.predict(xtrain)
 ypred_test_final=finalmodel.predict(xtest)
 
-errors = abs(y_pred - y_test)
-mape = 100 * np.mean((errors / y_test))
+errors = abs(ypred_test_final - ytest)
+mape = 100 * np.mean((errors / ytest))
 accuracy = 100 - mape
 
 print('Metrics for Final model of important features')
-print("Mean squared error: ", mean_squared_error(y_test, y_pred))
+print("Mean squared error: ", mean_squared_error(ytest, ypred_test_final))
 print('Average absolute error:', round(np.mean(errors), 2))
 
 print('mean absolute percentage error (MAPE):', mape)
 print('Accuracy:', round(accuracy, 2), '%.')
 
-print("Train R2 score: ", round(r2_score(y_train,y_pred_train4),4))
-print("Test R2 score: ", round(r2_score(y_test,y_pred),4))
+print("Train R2 score: ", round(r2_score(ytrain,ypred_train_final),4))
+print("Test R2 score: ", round(r2_score(ytest,ypred_test_final),4))
 
 # Results:
 # Metrics for Final model of important features
