@@ -44,6 +44,122 @@ plt.xticks(range(0, 101, 5))
 
 plt.show()
 
+#%%
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Box plot
+
+sns.set(style="whitegrid")
+plt.figure(figsize=(10, 6))
+sns.barplot(x='region', y='charges', data=df)
+plt.title('Insurance Charges Across Regions')
+plt.xlabel('Region')
+plt.ylabel('Charges')
+plt.show()
+
+#%%
+from scipy.stats import f_oneway
+
+charges_by_region = [df['charges'][df['region'] == region] for region in df['region'].unique()]
+
+f_statistic, p_value = f_oneway(*charges_by_region)
+
+print(f"F-statistic: {f_statistic}")
+print(f"P-value: {p_value}")
+
+'''
+Null Hypothesis : There is no significant difference in the mean insurance charges across the four regions.
+
+Alternative Hypothesis : There is a significant difference in the mean insurance charges across the four regions.
+
+F-statistic: 1644.2059645503782
+P-value: 0.0
+
+The ANOVA test revealed significantly different mean insurance charges 
+among at least two of the four regions (p < 0.001). 
+Subsequent Tukey HSD analysis indicated specific pairwise 
+differences in mean charges, offering insights into the 
+direction and significance of regional variations.
+'''
+
+from statsmodels.stats.multicomp import pairwise_tukeyhsd
+
+tukey_result = pairwise_tukeyhsd(df['charges'], df['region'])
+print(tukey_result)
+#%%
+
+sns.set(style="whitegrid")
+sns.barplot(x='smoker', y='charges', data=df)
+plt.title('Average Insurance Charges for Smokers and Non-Smokers')
+plt.xlabel('Smoker')
+plt.ylabel('Charges')
+plt.show()
+
+
+#%%
+
+from scipy.stats import ttest_ind
+
+smoker_charges = df[df['smoker'] == 'yes']['charges']
+non_smoker_charges = df[df['smoker'] == 'no']['charges']
+
+t_stat, p_value = ttest_ind(smoker_charges, non_smoker_charges)
+print(f'T-statistic: {t_stat}, p-value: {p_value}')
+
+'''
+T-statistic: 686.9351780779127, p-value: 0.0
+'''
+
+
+
+#%%
+
+from scipy.stats import pearsonr
+
+# Calculate Pearson's correlation coefficient and p-value
+correlation_coefficient, p_value = pearsonr(df['age'], df['charges'])
+
+# Print the results
+print(f"Pearson's correlation coefficient: {correlation_coefficient}")
+print(f"P-value: {p_value}")
+
+#%%
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+import pandas as pd
+
+# Set the plot style to whitegrid
+sns.set(style="whitegrid")
+
+# Define a function to remove outliers based on IQR
+def remove_outliers_iqr(data, column):
+    Q1 = data[column].quantile(0.25)
+    Q3 = data[column].quantile(0.75)
+    IQR = Q3 - Q1
+    lower_bound = Q1 - 1.5 * IQR
+    upper_bound = Q3 + 1.5 * IQR
+    return data[(data[column] >= lower_bound) & (data[column] <= upper_bound)]
+
+# Remove outliers for each gender
+df_no_outliers = pd.concat([remove_outliers_iqr(df[df['gender'] == 'male'], 'charges'),
+                            remove_outliers_iqr(df[df['gender'] == 'female'], 'charges')])
+
+# Create the box plot without outliers
+sns.boxplot(x='gender', y='charges', data=df_no_outliers)
+plt.title('Insurance Premiums by Gender')
+plt.xlabel('Gender')
+plt.ylabel('Charges')
+plt.show()
+
+
+male_charges = df[df['gender'] == 'male']['charges']
+female_charges = df[df['gender'] == 'female']['charges']
+
+t_stat, p_value = ttest_ind(male_charges, female_charges)
+print(f'Test Statistic: {t_stat}, p-value: {p_value}')
 # %%
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -141,38 +257,6 @@ print("BMI Distribution by Occupation:")
 print(bmi_occupation_percentages.applymap(lambda x: f'{x:.2f}%'))
 
 #%%
-
-from scipy.stats import ttest_ind
-
-smoker_charges = df[df['smoker'] == 'yes']['charges']
-non_smoker_charges = df[df['smoker'] == 'no']['charges']
-
-t_stat, p_value = ttest_ind(smoker_charges, non_smoker_charges)
-print(f'T-statistic: {t_stat}, p-value: {p_value}')
-
-'''
-T-statistic: 686.9351780779127, p-value: 0.0
-'''
-
-#%%
-
-from scipy.stats import f_oneway
-
-charges_by_region = [df['charges'][df['region'] == region] for region in df['region'].unique()]
-
-f_statistic, p_value = f_oneway(*charges_by_region)
-
-print(f"F-statistic: {f_statistic}")
-print(f"P-value: {p_value}")
-
-'''
-There is a significant difference in charges between different regions.
-F-statistic: 1644.2059645503782
-P-value: 0.0
-
-'''
-
-#%%
 from scipy.stats import chi2_contingency
 
 contingency_table = pd.crosstab(df['gender'], df['medical_history'])
@@ -207,6 +291,19 @@ F-statistic: 10960.740716743454
 P-value: 0.0
 There is a significant difference in charges among different occupations.
 '''
+
+
+#%%
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Scatter plot of children vs charges
+sns.scatterplot(x='children', y='charges', data=df)
+plt.title('Insurance Charges by Number of Children')
+plt.xlabel('Number of Children')
+plt.ylabel('Charges')
+plt.show()
+
 #%%
 import pandas as pd
 from scipy.stats import f_oneway
@@ -224,6 +321,33 @@ print(f'P-value: {p_value}')
 F-statistic: 9594.186867640998
 P-value: 0.0
 '''
+
+#%%
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Interaction plot
+sns.catplot(x='smoker', y='charges', hue='exercise_frequency', kind='point', data=df)
+plt.title('Effect of Smoking and Exercise Frequency on charges')
+plt.xlabel('Smoker')
+plt.ylabel('Charges')
+plt.show()
+
+
+#%%
+import statsmodels.stats.multicomp as mc
+
+# Create a dataframe for the Tukey HSD test
+tukey_data = df[['smoker', 'exercise_frequency', 'charges']]
+
+# Perform Tukey HSD test
+tukey_result = mc.MultiComparison(tukey_data['charges'], tukey_data[['smoker', 'exercise_frequency']])
+tukey_table = tukey_result.tukeyhsd()
+
+# Print the Tukey HSD results
+print(tukey_table)
+
+
 
 #%%
 import pandas as pd
@@ -312,4 +436,20 @@ plt.ylabel('Predicted Charges')
 
 plt.tight_layout()
 plt.show()
+# %%
+from scipy.stats import f_oneway
+
+# Example assuming 'medical_history' is the categorical variable and 'charges' is the continuous variable
+medical_history_levels = df['medical_history'].unique()
+
+# Create a list of charges for each level of medical history
+charges_by_history = [df[df['medical_history'] == history]['charges'] for history in medical_history_levels]
+
+# Perform ANOVA
+f_statistic, p_value = f_oneway(*charges_by_history)
+
+# Print the results
+print(f'F-statistic: {f_statistic}')
+print(f'P-value: {p_value}')
+
 # %%
