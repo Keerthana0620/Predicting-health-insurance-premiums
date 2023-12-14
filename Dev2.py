@@ -453,3 +453,19 @@ print(f'F-statistic: {f_statistic}')
 print(f'P-value: {p_value}')
 
 # %%
+from statsmodels.formula.api import ols
+from statsmodels.stats.multicomp import pairwise_tukeyhsd
+import statsmodels.api as sm
+
+model_FMH= ols('charges ~ C(family_medical_history)',data=df).fit()
+result_FMH = sm.stats.anova_lm(model_FMH, type=1)
+  
+# Print the result
+print(result_FMH, "\n")
+
+print(" There is significant difference among the means of family_medical_history groups of charges")
+
+tukey_FMH = pairwise_tukeyhsd(endog=df['charges'], groups=df['family_medical_history'], alpha=0.05)
+print(tukey_FMH)
+
+# %%
